@@ -1,0 +1,18 @@
+policies:
+  - code: POL-001
+    name: Restricted Data Residency
+    if:
+      classification: Restricted
+    then:
+      location: Saudi Arabia
+  - code: POL-002
+    name: Cross-Department GPU Sharing
+    if:
+      resource: GPU
+      classification_lte: Internal
+    allow:
+      cross_department: true
+  - code: POL-003
+    name: Reserved Capacity
+    every: cluster
+    retain_percent: 20

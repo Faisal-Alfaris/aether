@@ -1,100 +1,77 @@
-# vinext-starter
+# AETHER
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+**Policy-aware placement. Capacity without compromise.**
 
-## Prerequisites
+AETHER is an enterprise infrastructure orchestration and decision layer for fragmented data centers, Kubernetes clusters, GPU pools, VMs, cloud environments, and storage systems. It answers a question that schedulers alone do not: **which environment is both eligible and best for this workload?**
 
-- Node.js `>=22.13.0`
+The governing principle is **share capacity, not data**. Resource owners publish only metadata and explicitly shareable capacity. Workload owners define technical and governance requirements. AETHER intersects both policy sets with organization guardrails before ranking eligible destinations.
 
-## Quick Start
+## What the prototype demonstrates
+
+- Federated infrastructure discovery and capacity visibility
+- Hard policy constraints plus soft best-fit optimization
+- Explainable eligible and blocked decisions
+- Independent workload/data-owner and infrastructure-owner approval gates
+- Demo-safe execution and real Kubernetes integration through the official Python client
+- Namespace isolation, quotas, resource limits, and AETHER labels
+- Append-only, hash-linked audit events
+- A complete two-minute interactive product journey
+
+## Repository
+
+```text
+app/                         Web control plane (Next-compatible TypeScript)
+apps/api/                    FastAPI control plane and SQLAlchemy schema
+services/placement-engine/   Placement service boundary
+services/policy-engine/      Policy examples and service boundary
+services/infrastructure-agent/ Metadata-only local agent
+infra/docker/                Container builds
+infra/kubernetes/            Raw Kubernetes resources
+infra/helm/aether/           Helm chart
+docs/                        API and data model documentation
+tests/                       Web render/integration checks
+.github/workflows/           CI for web, API, tests, and builds
+```
+
+## Open locally
+
+Requirements: Node.js 22.13+ and Python 3.12+.
 
 ```bash
 npm install
 npm run dev
-npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Included Shape
+Run the API in a second terminal:
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+python -m venv .venv
+.venv/Scripts/pip install -r apps/api/requirements.txt
+$env:DEMO_MODE="true"
+.venv/Scripts/uvicorn app.main:app --app-dir apps/api --reload
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+The API is available at `http://localhost:8000`; interactive OpenAPI docs are at `/docs`.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+## Demo and real modes
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+`DEMO_MODE=true` is the default and uses deterministic infrastructure plus simulated deployment, so a presentation never depends on cluster availability.
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+With `DEMO_MODE=false`, AETHER loads in-cluster credentials first and then falls back to `KUBECONFIG`. Discovery and execution credentials should be different service accounts. The included manifests model that separation.
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+## Validation
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+```bash
+npm run lint
+npm test
+$env:PYTHONPATH="apps/api"
+python -m unittest discover -s apps/api/tests -v
+```
 
-## Useful Commands
+See [ARCHITECTURE.md](ARCHITECTURE.md), [DEMO.md](DEMO.md), [docs/API.md](docs/API.md), and [docs/DATABASE.md](docs/DATABASE.md).
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+## Product boundary
 
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+AETHER initially places portable containers, compatible Kubernetes workloads, and selected VM workloads. Legacy systems can be discovered and evaluated before a planned migration. AETHER enforces organization-approved policies; it does not claim automatic regulatory compliance or indiscriminate database migration.
