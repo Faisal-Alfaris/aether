@@ -1,0 +1,6 @@
+apiVersion: v2
+name: aether
+description: AETHER policy-aware infrastructure placement control plane
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

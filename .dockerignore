@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+dist
+.next
+.vinext
+.wrangler
+build
+coverage
+**/__pycache__
+*.pyc
+*.log
+.env*

@@ -1,0 +1,179 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aether-system
+  labels:
+    app.kubernetes.io/part-of: aether
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aether-discovery
+  namespace: aether-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aether-executor
+  namespace: aether-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aether-discovery
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "namespaces", "pods", "resourcequotas", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aether-discovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aether-discovery
+subjects:
+  - kind: ServiceAccount
+    name: aether-discovery
+    namespace: aether-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aether-executor
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "create"]
+  - apiGroups: [""]
+    resources: ["resourcequotas", "persistentvolumeclaims", "services", "pods"]
+    verbs: ["get", "list", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: aether-executor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: aether-executor
+subjects:
+  - kind: ServiceAccount
+    name: aether-executor
+    namespace: aether-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aether-config
+  namespace: aether-system
+data:
+  DEMO_MODE: "true"
+  CORS_ORIGINS: "http://localhost:3000"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aether-api
+  namespace: aether-system
+  labels:
+    app.kubernetes.io/name: aether-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aether-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aether-api
+    spec:
+      serviceAccountName: aether-executor
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: api
+          image: ghcr.io/your-organization/aether-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: aether-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aether-secrets
+                  key: database-url
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 4
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aether-api
+  namespace: aether-system
+spec:
+  selector:
+    app.kubernetes.io/name: aether-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aether-web
+  namespace: aether-system
+  labels:
+    app.kubernetes.io/name: aether-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aether-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aether-web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: web
+          image: ghcr.io/your-organization/aether-web:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aether-web
+  namespace: aether-system
+spec:
+  selector:
+    app.kubernetes.io/name: aether-web
+  ports:
+    - port: 3000
+      targetPort: 3000
